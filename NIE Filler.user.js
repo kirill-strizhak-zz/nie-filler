@@ -2,7 +2,7 @@
 // @name         NIE Filler
 // @description  Script for NIE automatic form filling for the Barcelona area
 // @namespace    https://sede.administracionespublicas.gob.es/
-// @version      1.3
+// @version      1.4
 // @author       k.strizhak84@gmail.com
 // @match        https://sede.administracionespublicas.gob.es/icpplustieb*
 // @require      https://code.jquery.com/jquery-2.1.4.min.js
@@ -20,6 +20,7 @@
     var APPLICANTS = [
         {
             name: "JANE MAY",
+            country: "ESTONIA",
             docType: PASS,
             numberPrefix: "",
             number: "AB1234567",
@@ -29,6 +30,7 @@
             motive: "Trabajo"
         },{
             name: "JOHN DOE",
+            country: "LETONIA",
             docType: NIE,
             numPrefix: "X",
             number: "1111",
@@ -38,6 +40,7 @@
             motive: "Temporal, por 3 meses"
         },{
             name: "SAM SMITH",
+            country: "LETONIA",
             docType: DNI,
             numberPrefix: "",
             number: "12345678",
@@ -49,55 +52,39 @@
     ];
 
     var OPTIONS = {
-        continue_on_captcha_enter     : true, // Automatically continue to the next page after pressing ENTER in captcha input.
         auto_retry_if_no_appointment  : true, // Automatically retry with the same person if there are no available appointments after an interval.
-        auto_retry_interval_min       : 5,    // Interval in minutes, after which to retry finding an appointment.
-        auto_select_office            : true, // Automatically select the first provided office for the appointment.
-        auto_select_first_appointment : true, // Automatically select the first available appointment and advance.
-        subscribe_to_email            : true, // On the verification page (Paso 4 de 5) put a tick beside "Deseo recibir un correo electrónico...".
-        auto_advance_page_8           : true, // Automatically advance after confirming data on verification page (Paso 4 de 5).
+        auto_retry_interval_min       : 1,    // Interval in minutes, after which to retry finding an appointment.
     };
 
     var APPLICANT_LIST_STYLE = "background: yellow; position: absolute; top: 0; right: 0; padding: 3px;";
 
     var PAGE_1_BASE_URL   = "https://sede.administracionespublicas.gob.es/icpplustieb/citar";
-    var PAGE_2_INFO       = "accion=ac_info";
-    var PAGE_3_ENTRANCE   = "accion=ac_entrada";
-    var PAGE_4_VALIDATE   = "accion=ac_validarentrada";
-    var PAGE_5_SEARCH     = "accion=AC_CITAR";
-    var PAGE_6_ADDITIONAL = "accion=AC_VERFORMULARIO"; // (Paso 2 de 5)
-    var PAGE_7_OFFER      = "accion=AC_OFERTARCITA";   // (Paso 3 de 5)
-    var PAGE_8_VERIFY     = "accion=AC_VERIFICARCITA"; // (Paso 4 de 5)
+    var PAGE_2_INFO       = "acInfo";
+    var PAGE_3_ENTRANCE   = "acEntrada";
+    var PAGE_4_VALIDATE   = "acValidarEntrada";
+    var PAGE_5_SEARCH     = "acCitar";
+    var PAGE_6_ADDITIONAL = "acVerformulario"; // (Paso 2 de 5)
+    var PAGE_7_OFFER      = "acOfertarcita";   // (Paso 3 de 5)
+    var PAGE_8_VERIFY     = "acVerificarcita"; // (Paso 4 de 5)
 
     var LOAD_WAIT_INTERVAL = 200;
     var RETRY_INT_MULTIPLYER = 60000;
 
-    var SEL_CAPTCHA            = "#recaptcha_response_field";
-    var SEL_P1_CERTIFICADOS_EU = "select[name='t']";
+    var SEL_P1_CERTIFICADOS_EU = "#tramite";
     var SEL_P1_ACCEPT          = "input[value='Aceptar']";
-    var SEL_P2_ENTER           = "input[value='ENTRAR']";
+    var SEL_P2_ENTER           = "input[value='Entrar']";
     var SEL_P3_OPT_NIE         = "input[value='N.I.E.']";
     var SEL_P3_OPT_DNI         = "input[value='D.N.I.']";
-    var SEL_P3_OPT_PASS        = "input[value='Pasaporte / Documento de identidad']";
+    var SEL_P3_OPT_PASS        = "#rdbTipoDocPasDdi";
     var SEL_P3_NUM_PREFIX      = "#txtLetraNie";
-    var SEL_P3_NUMBER          = "#txtNieAux";
+    var SEL_P3_NUMBER          = "#txtIdCitado";
     var SEL_P3_NUM_POSTFIX     = "#txtLetraNieAux";
     var SEL_P3_NAME            = "#txtDesCitado";
+    var SEL_P3_COUNTRY         = "#txtPaisNac";
     var SEL_P3_ACCEPT          = "input[value='Aceptar']";
-    var SEL_P4_SOLICITAR       = "input[value='SOLICITAR CITA']";
-    var SEL_P5_NO_APP          = "td:contains('no hay citas disponibles')";
-    var SEL_P5_VOLVER          = "input[value='Volver']";
-    var SEL_P5_SIGUENTE        = "input[value='Siguiente']";
-    var SEL_P6_PHONE           = "#txtTelefonoCitado";
-    var SEL_P6_EMAIL           = "#emailUNO";
-    var SEL_P6_CONFIRM_EMAIL   = "#emailDOS";
-    var SEL_P6_MOTIVE          = "#txtObservaciones";
-    var SEL_P6_SIGUENTE        = "input[value='Siguiente']";
-    var SEL_P7_CITA            = "input[title='Seleccionar CITA 1'";
-    var SEL_P7_SIGUENTE        = "input[value='Siguiente']";
-    var SEL_P8_CHB_CONFIRM     = "input[name='chkTotal']";
-    var SEL_P8_SUBSCRIBE       = "#enviarCorreo";
-    var SEL_P8_BTN_CONFIRM     = "input[value='Confirmar']";
+    var SEL_P4_SOLICITAR       = "#btnEnviar";
+    var SEL_P5_NO_APP          = "body:contains('no hay citas disponibles')";
+    var SEL_P5_VOLVER          = "#btnSubmit";
 
     var RETRY_COUNTER_STYLE = "font-size: large; display: inline; vertical-align: middle; margin: 20px;";
 
@@ -163,7 +150,7 @@
     } else if (window.location.href.indexOf(PAGE_5_SEARCH) != -1) {
         navigatePage5();
 
-    } else if (window.location.href.indexOf(PAGE_6_ADDITIONAL) != -1) {
+    }/* else if (window.location.href.indexOf(PAGE_6_ADDITIONAL) != -1) {
         navigatePage6();
 
     } else if (window.location.href.indexOf(PAGE_7_OFFER) != -1) {
@@ -171,7 +158,7 @@
 
     } else if (window.location.href.indexOf(PAGE_8_VERIFY) != -1) {
         navigatePage8();
-    }
+    }*/
 
 /*
     PAGE 1
@@ -205,9 +192,6 @@
         p3_buildApplicantList();
         p3_selectApplicant();
         p3_registerAppSwitch();
-        if (OPTIONS.continue_on_captcha_enter) {
-            triggerAfterCaptcha(SEL_P3_ACCEPT);
-        }
     }
 
     function p3_buildApplicantList() {
@@ -249,8 +233,7 @@
         $(SEL_P3_NUMBER).val(app.number);
         $(SEL_P3_NUM_POSTFIX).val(app.numPostfix);
         $(SEL_P3_NAME).val(app.name);
-
-        setFocus(SEL_CAPTCHA);
+        $(SEL_P3_COUNTRY + " option:contains('" + app.country + "')").prop("selected", true);
     }
 
     function p3_registerAppSwitch() {
@@ -274,23 +257,20 @@
     PAGE 4
 */
     function navigatePage4() {
-        setFocus(SEL_CAPTCHA);
-        if (OPTIONS.continue_on_captcha_enter) {
-            triggerAfterCaptcha(SEL_P4_SOLICITAR);
-        }
+        triggerClick(SEL_P4_SOLICITAR);
     }
 
 /*
     PAGE 5
 */
     function navigatePage5() {
+        var audio = $("<audio/>", { style: "display:none;" });
+        var src = $("<source/>", { src: BEEP_MP3 });
+        audio.append(src);
+        $("body").append(audio);
+
         var noApp = $(SEL_P5_NO_APP).length !== 0;
         if (noApp && OPTIONS.auto_retry_if_no_appointment) {
-            var audio = $("<audio/>", { style: "display:none;" });
-            var src = $("<source/>", { src: BEEP_MP3 });
-            audio.append(src);
-            $("body").append(audio);
-
             var display = $("<div/>", { style: RETRY_COUNTER_STYLE });
             var timePrefix = $("<span/>", { text: "Retrying in " });
             var time = $("<span/>", { text: OPTIONS.auto_retry_interval_min });
@@ -300,23 +280,10 @@
             display.append(timePostfix);
             $(SEL_P5_VOLVER).after(display);
 
-            setTimeout(p5_retry, OPTIONS.auto_retry_interval_min * RETRY_INT_MULTIPLYER, audio, time, 3);
+            setTimeout(function() { window.history.back(); }, OPTIONS.auto_retry_interval_min * RETRY_INT_MULTIPLYER, audio, time);
             setTimeout(p5_updateRetryTime, RETRY_INT_MULTIPLYER, time);
-
-        } else if (!noApp && OPTIONS.auto_select_office) {
-            triggerClick(SEL_P5_SIGUENTE);
-        }
-    }
-
-    function p5_retry(audio, time, beepCount) {
-        audio.trigger("play");
-        if (beepCount > 1) {
-            console.log("beep");
-            setTimeout(p5_retry, 1000, audio, time, beepCount - 1);
         } else {
-            console.log("retry");
-            time.text("0");
-            setTimeout(function() { window.history.back(); }, 1000);
+            p5_ding_ding_ding(audio, 3);
         }
     }
 
@@ -328,69 +295,19 @@
         }
     }
 
-/*
-    PAGE 6 (Paso 2 de 5)
-*/
-    function navigatePage6() {
-        var appIdx = GM_getValue("appIdx");
-        var app = APPLICANTS[appIdx];
-        $(SEL_P6_PHONE).val(app.phone);
-        $(SEL_P6_EMAIL).val(app.email);
-        $(SEL_P6_CONFIRM_EMAIL).val(app.email);
-        $(SEL_P6_MOTIVE).val(app.motive);
-        setFocus(SEL_CAPTCHA);
-        if (OPTIONS.continue_on_captcha_enter) {
-            triggerAfterCaptcha(SEL_P6_SIGUENTE);
-        }
-    }
-
-/*
-    PAGE 7 (Paso 3 de 5)
-*/
-    function navigatePage7() {
-        if (OPTIONS.auto_select_first_appointment) {
-            triggerClick(SEL_P7_CITA);
-            triggerClick(SEL_P7_SIGUENTE);
-        }
-    }
-
-/*
-    PAGE 8 (Paso 4 de 5)
-*/
-    function navigatePage8() {
-        triggerClick(SEL_P8_CHB_CONFIRM);
-        if (OPTIONS.subscribe_to_email) {
-            triggerClick(SEL_P8_SUBSCRIBE);
-        }
-        if (OPTIONS.auto_advance_page_8) {
-            triggerClick(SEL_P8_BTN_CONFIRM);
+    function p5_ding_ding_ding(audio, beepCount) {
+        audio.trigger("play");
+        if (beepCount > 1) {
+            setTimeout(p5_ding_ding_ding, 500, audio, beepCount - 1);
         }
     }
 
 /*
     COMMONS
 */
-    function triggerAfterCaptcha(selector) {
-        var cap = $(SEL_CAPTCHA);
-        waitForEl(
-            cap, triggerAfterCaptcha, LOAD_WAIT_INTERVAL,
-            function() {
-                cap.keydown(function(e) {
-                    var code = e.which;
-                    if (code == 13) {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        $(selector).click();
-                        return false;
-                    }
-                });
-            },
-            selector
-        );
-    }
-
     function triggerClick(selector) {
         var el = $(selector);
+        console.log(el);
         waitForEl(el, triggerClick, LOAD_WAIT_INTERVAL, function() {  el.click(); }, selector);
     }
 
