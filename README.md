@@ -6,7 +6,9 @@ This is a userscript for NIE appointment request automation for EU citizens in B
 
 If you ever need to apply for NIE appointment in Barcelona, my condolences. Unless you are in a distant future from the moment when this script was created, things are not going to be too easy or convenient for you. Appointments become available at mostly random times and you are expected to re-enter all of your info on each attempt to register.
 
-For better results try to apply with the help of this script every Monday from 7:55 AM to 8:15 AM. This is when batches of new appointments usually become available. They may randomly appear at other times but this time range is the one my HR department and I have had the most success with.
+~For better results try to apply with the help of this script every Monday from 7:55 AM to 8:15 AM. This is when batches of new appointments usually become available. They may randomly appear at other times but this time range is the one my HR department and I have had the most success with.~
+
+That last part is sadly no longer true. Last person to use this had to run it round the clock for a few weeks to get anything.
 
 ## Usage ##
 
